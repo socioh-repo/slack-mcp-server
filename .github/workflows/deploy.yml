@@ -55,6 +55,7 @@ jobs:
         
         # Create a new service spec to add to existing app
         cat > new-service-spec.yaml << EOF
+        name: ${{ secrets.DIGITALOCEAN_APP_NAME }}
         services:
         - name: slack-mcp-server
           image:
