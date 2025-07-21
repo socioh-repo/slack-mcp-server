@@ -170,8 +170,8 @@ This project includes GitHub Actions for automatic deployment to DigitalOcean Ap
 
 1. **Add GitHub Secrets**: In your GitHub repository, go to Settings → Secrets and variables → Actions, and add:
    - `DIGITALOCEAN_ACCESS_TOKEN`: Your DigitalOcean API token
-   - `DIGITALOCEAN_APP_NAME`: The name of your existing DigitalOcean App Platform app
-   - `DIGITALOCEAN_REGISTRY_NAME`: Your DigitalOcean Container Registry name (e.g., "my-registry")
+   - `DIGITALOCEAN_APP_ID`: Your existing DigitalOcean App Platform app ID
+   - `DIGITALOCEAN_REGISTRY`: Your DigitalOcean Container Registry name (e.g., "socioh-librechat-registry")
 
 2. **Deploy**: The workflow will automatically deploy when you push to the `main` branch, or you can manually trigger it from the Actions tab.
 
