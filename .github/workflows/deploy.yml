@@ -61,8 +61,12 @@ jobs:
 
     - name: Deploy to DigitalOcean App Platform
       run: |
+        # Get the app name first
+        APP_NAME=$(doctl apps get ${{ secrets.DIGITALOCEAN_APP_ID }} --format Spec.Name --no-header)
+        
         # Create a new service spec to add to existing app
         cat > new-service-spec.yaml << EOF
+        name: $APP_NAME
         services:
         - name: slack-mcp-server
           image:
