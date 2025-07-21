@@ -65,7 +65,6 @@ jobs:
             tag: ${{ github.sha }}
           instance_count: 1
           instance_size_slug: basic-xxs
-          environment_slug: docker
           # Internal port only - not exposed publicly
           internal_ports:
           - 3001
