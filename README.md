@@ -154,6 +154,63 @@ npx @modelcontextprotocol/inspector go run mcp/mcp-server.go --transport stdio
 tail -n 20 -f ~/Library/Logs/Claude/mcp*.log
 ```
 
+## Deployment
+
+### DigitalOcean App Platform
+
+This project includes GitHub Actions for automatic deployment to DigitalOcean App Platform.
+
+#### Prerequisites
+
+1. **DigitalOcean Account**: Create an account at [DigitalOcean](https://digitalocean.com)
+2. **DigitalOcean Access Token**: Generate an API token in your DigitalOcean dashboard
+3. **GitHub Repository**: Ensure your code is in a GitHub repository
+
+#### Setup
+
+1. **Add GitHub Secrets**: In your GitHub repository, go to Settings → Secrets and variables → Actions, and add:
+   - `DIGITALOCEAN_ACCESS_TOKEN`: Your DigitalOcean API token
+   - `DIGITALOCEAN_APP_NAME`: The name of your existing DigitalOcean App Platform app
+   - `DIGITALOCEAN_REGISTRY_NAME`: Your DigitalOcean Container Registry name (e.g., "my-registry")
+
+2. **Deploy**: The workflow will automatically deploy when you push to the `main` branch, or you can manually trigger it from the Actions tab.
+
+#### Configuration
+
+The deployment adds a new service to your existing DigitalOcean App Platform app with:
+- **Service Name**: `slack-mcp-server`
+- **Port**: `3001`
+- **Instance Size**: `basic-xxs` (smallest available)
+- **Environment**: Docker container
+
+#### Environment Variables
+
+After deployment, you'll need to set these environment variables in your DigitalOcean App Platform dashboard:
+
+**Required (Choose ONE authentication method):**
+- `SLACK_MCP_XOXP_TOKEN`: Your Slack OAuth token (`xoxp-...`) - **Recommended**
+- OR `SLACK_MCP_XOXC_TOKEN` + `SLACK_MCP_XOXD_TOKEN`: Your Slack browser tokens
+
+**Optional but recommended:**
+- `SLACK_MCP_HOST`: `0.0.0.0`
+- `SLACK_MCP_PORT`: `3001`
+- `SLACK_MCP_USERS_CACHE`: `.users_cache.json`
+- `SLACK_MCP_CHANNELS_CACHE`: `.channels_cache_v2.json`
+
+#### How to Set Environment Variables
+
+1. Go to your DigitalOcean App Platform dashboard
+2. Select your app (specified in `DIGITALOCEAN_APP_NAME` secret)
+3. Go to **Settings** → **Environment Variables**
+4. Add each variable as "App-level" environment variables
+
+#### Communication
+
+Once deployed, other services in your DigitalOcean app can communicate with the Slack MCP server at:
+```
+http://slack-mcp-server:3001
+```
+
 ## Security
 
 - Never share API tokens
