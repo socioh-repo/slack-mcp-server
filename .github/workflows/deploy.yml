@@ -63,7 +63,6 @@ jobs:
             registry: registry.digitalocean.com
             repository: ${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}/slack-mcp-server
             tag: ${{ github.sha }}
-          http_port: 3001
           instance_count: 1
           instance_size_slug: basic-xxs
           environment_slug: docker
