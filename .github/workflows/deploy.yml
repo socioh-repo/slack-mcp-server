@@ -36,18 +36,47 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Deploy to DigitalOcean App Platform
-      uses: digitalocean/app_action@main
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
       with:
-        app_name: ${{ secrets.DIGITALOCEAN_APP_NAME }}
         token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-        images: |
-          [
-            {
-              "name": "slack-mcp-server",
-              "registry_type": "DOCR",
-              "registry": "${{ env.REGISTRY }}",
-              "repository": "${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}/slack-mcp-server",
-              "tag": "${{ github.sha }}"
-            }
-          ] 
+
+    - name: Deploy to DigitalOcean App Platform
+      run: |
+        # Get the app ID from the existing project
+        APP_ID=$(doctl apps list --format ID,Spec.Name --no-header | grep "${{ secrets.DIGITALOCEAN_APP_NAME }}" | awk '{print $1}')
+        
+        if [ -z "$APP_ID" ]; then
+          echo "Error: App '${{ secrets.DIGITALOCEAN_APP_NAME }}' not found"
+          exit 1
+        fi
+        
+        echo "Found app ID: $APP_ID"
+        
+        # Create a new service spec to add to existing app
+        cat > new-service-spec.yaml << EOF
+        services:
+        - name: slack-mcp-server
+          image:
+            registry_type: DOCR
+            registry: registry.digitalocean.com
+            repository: ${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}/slack-mcp-server
+            tag: ${{ github.sha }}
+          http_port: 3001
+          instance_count: 1
+          instance_size_slug: basic-xxs
+          environment_slug: docker
+          # Internal port only - not exposed publicly
+          internal_ports:
+          - 3001
+          envs:
+          - key: SLACK_MCP_HOST
+            value: "0.0.0.0"
+          - key: SLACK_MCP_PORT
+            value: "3001"
+        EOF
+        
+        # Add the new service to the existing app
+        doctl apps update $APP_ID --spec new-service-spec.yaml
+        
+        echo "Successfully added slack-mcp-server component to existing app" 
