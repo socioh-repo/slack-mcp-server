@@ -27,15 +27,32 @@ jobs:
         password: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
         logout: false
 
+    - name: Validate secrets
+      run: |
+        if [ -z "${{ secrets.DIGITALOCEAN_REGISTRY }}" ]; then
+          echo "Error: DIGITALOCEAN_REGISTRY secret is not set"
+          echo "Please add DIGITALOCEAN_REGISTRY=socioh-librechat-registry to your GitHub secrets"
+          exit 1
+        fi
+        
+        if [ -z "${{ secrets.DIGITALOCEAN_APP_ID }}" ]; then
+          echo "Error: DIGITALOCEAN_APP_ID secret is not set"
+          echo "Please add DIGITALOCEAN_APP_ID=a703f5f7-a394-4cab-b94e-f27b1e09167c to your GitHub secrets"
+          exit 1
+        fi
+        
+        echo "Registry: ${{ secrets.DIGITALOCEAN_REGISTRY }}"
+        echo "App ID: ${{ secrets.DIGITALOCEAN_APP_ID }}"
+
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
-        tags: ${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY }}/slack-mcp-server:latest
+        tags: ${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}/slack-mcp-server:latest
         platforms: linux/amd64,linux/arm64
-        cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY }}/slack-mcp-server:buildcache
-        cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY }}/slack-mcp-server:buildcache,mode=max
+        cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}/slack-mcp-server:buildcache
+        cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}/slack-mcp-server:buildcache,mode=max
 
     - name: Install doctl
       uses: digitalocean/action-doctl@v2
@@ -50,7 +67,7 @@ jobs:
         - name: slack-mcp-server
           image:
             registry_type: DOCR
-            registry: ${{ secrets.DIGITALOCEAN_REGISTRY }}
+            registry: ${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}
             repository: slack-mcp-server
             tag: latest
           instance_count: 1
