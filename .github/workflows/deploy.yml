@@ -1,4 +1,4 @@
-name: Deploy to DigitalOcean
+name: Build and Push to DigitalOcean Registry
 
 on:
   push:
@@ -9,7 +9,7 @@ env:
   REGISTRY: registry.digitalocean.com
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     
     steps:
@@ -35,14 +35,8 @@ jobs:
           exit 1
         fi
         
-        if [ -z "${{ secrets.DIGITALOCEAN_APP_ID }}" ]; then
-          echo "Error: DIGITALOCEAN_APP_ID secret is not set"
-          echo "Please add DIGITALOCEAN_APP_ID=a703f5f7-a394-4cab-b94e-f27b1e09167c to your GitHub secrets"
-          exit 1
-        fi
-        
         echo "Registry: ${{ secrets.DIGITALOCEAN_REGISTRY }}"
-        echo "App ID: ${{ secrets.DIGITALOCEAN_APP_ID }}"
+        echo "Image will be pushed to: ${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY }}/slack-mcp-server:latest"
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
@@ -52,41 +46,11 @@ jobs:
         tags: ${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}/slack-mcp-server:latest
         platforms: linux/amd64,linux/arm64
         cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}/slack-mcp-server:buildcache
-        cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}/slack-mcp-server:buildcache,mode=max
+        cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}/buildcache,mode=max
 
-    - name: Install doctl
-      uses: digitalocean/action-doctl@v2
-      with:
-        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-    - name: Deploy to DigitalOcean App Platform
+    - name: Verify image in registry
       run: |
-        # Get the app name first
-        APP_NAME=$(doctl apps get ${{ secrets.DIGITALOCEAN_APP_ID }} --format Spec.Name --no-header)
-        
-        # Create a new service spec to add to existing app
-        cat > new-service-spec.yaml << EOF
-        name: $APP_NAME
-        services:
-        - name: slack-mcp-server
-          image:
-            registry_type: DOCR
-            registry: ${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}
-            repository: slack-mcp-server
-            tag: latest
-          instance_count: 1
-          instance_size_slug: basic-xxs
-          # Internal port only - not exposed publicly
-          internal_ports:
-          - 3001
-          envs:
-          - key: SLACK_MCP_HOST
-            value: "0.0.0.0"
-          - key: SLACK_MCP_PORT
-            value: "3001"
-        EOF
-        
-        # Add the new service to the existing app using the app ID
-        doctl apps update ${{ secrets.DIGITALOCEAN_APP_ID }} --spec new-service-spec.yaml
-        
-        echo "Successfully added slack-mcp-server component to existing app" 
+        echo "Verifying image exists in registry..."
+        docker pull ${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY || 'socioh-librechat-registry' }}/slack-mcp-server:latest
+        echo "✅ Image successfully pushed to registry"
+        echo "Image location: ${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY }}/slack-mcp-server:latest" 

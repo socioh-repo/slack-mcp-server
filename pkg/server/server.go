@@ -17,8 +17,9 @@ import (
 )
 
 type MCPServer struct {
-	server *server.MCPServer
-	logger *zap.Logger
+	server   *server.MCPServer
+	provider *provider.ApiProvider
+	logger   *zap.Logger
 }
 
 func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger) *MCPServer {
@@ -198,8 +199,9 @@ func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger) *MCPServer
 	), conversationsHandler.UsersResource)
 
 	return &MCPServer{
-		server: s,
-		logger: logger,
+		server:   s,
+		provider: provider,
+		logger:   logger,
 	}
 }
 
@@ -211,14 +213,54 @@ func (s *MCPServer) ServeSSE(addr string) *server.SSEServer {
 		zap.String("commit_hash", version.CommitHash),
 		zap.String("address", addr),
 	)
-	return server.NewSSEServer(s.server,
+	
+	// Create SSE server
+	sseServer := server.NewSSEServer(s.server,
 		server.WithBaseURL(fmt.Sprintf("http://%s", addr)),
 		server.WithSSEContextFunc(func(ctx context.Context, r *http.Request) context.Context {
 			ctx = auth.AuthFromRequest(s.logger)(ctx, r)
-
 			return ctx
 		}),
 	)
+	
+	return sseServer
+}
+
+func (s *MCPServer) ServeHTTP(addr string) *http.Server {
+	s.logger.Info("Creating HTTP server with health endpoint",
+		zap.String("context", "console"),
+		zap.String("version", version.Version),
+		zap.String("build_time", version.BuildTime),
+		zap.String("commit_hash", version.CommitHash),
+		zap.String("address", addr),
+	)
+	
+	// Create SSE server
+	sseServer := s.ServeSSE(addr)
+	
+	// Create HTTP server with both SSE and health endpoints
+	mux := http.NewServeMux()
+	
+	// Add health check endpoint
+	healthHandler := NewHealthHandler(s.provider, s.logger)
+	mux.Handle("/health", healthHandler)
+	
+	// Add SSE endpoint
+	mux.Handle("/sse", sseServer)
+	
+	// Add root endpoint that redirects to health
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/health", http.StatusMovedPermanently)
+		} else {
+			http.NotFound(w, r)
+		}
+	})
+	
+	return &http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
 }
 
 func (s *MCPServer) ServeStdio() error {

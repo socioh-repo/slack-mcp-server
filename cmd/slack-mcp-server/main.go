@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -67,12 +68,14 @@ func main() {
 			port = strconv.Itoa(defaultSsePort)
 		}
 
-		sseServer := s.ServeSSE(":" + port)
+		httpServer := s.ServeHTTP(":" + port)
 		logger.Info(
-			fmt.Sprintf("SSE server listening on %s", fmt.Sprintf("%s:%s/sse", host, port)),
+			fmt.Sprintf("HTTP server listening on %s:%s", host, port),
 			zap.String("context", "console"),
 			zap.String("host", host),
 			zap.String("port", port),
+			zap.String("health_endpoint", fmt.Sprintf("http://%s:%s/health", host, port)),
+			zap.String("sse_endpoint", fmt.Sprintf("http://%s:%s/sse", host, port)),
 		)
 
 		if ready, _ := p.IsReady(); !ready {
@@ -81,7 +84,7 @@ func main() {
 			)
 		}
 
-		if err := sseServer.Start(host + ":" + port); err != nil {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("Server error",
 				zap.String("context", "console"),
 				zap.Error(err),
